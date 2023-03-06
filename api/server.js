@@ -16,16 +16,49 @@ const cors = require("cors");
  */
 
 const server = express();
+const authRouter = require("./auth/auth-router");
+const usersRouter = require("./users/users-router");
+const session = require("express-session");
+const Store = require("connect-session-knex")(session);
 
 server.use(helmet());
 server.use(express.json());
 server.use(cors());
 
+server.use(
+  session({
+    name: "cikolatacips",
+    secret: "secret_cikolatacips",
+    cookie: {
+      maxAge: 1000 * 60 * 60,
+      secure: false,
+    },
+    store: new Store({
+      knex: require("../data/db-config"),
+      tablename: "sessions",
+      sidfieldname: "sid",
+      createtable: true,
+      clearInterval: 1000 * 60 * 60,
+    }),
+    resave: false,
+    saveUninitialized: false,
+  })
+);
+server.use("/api/auth", authRouter);
+server.use("/api/users", usersRouter);
+
 server.get("/", (req, res) => {
   res.json({ api: "up" });
 });
 
-server.use((err, req, res, next) => { // eslint-disable-line
+server.use("*", (req, res) => {
+  res.status(404).json({
+    message: "Not found",
+  });
+});
+
+server.use((err, req, res, next) => {
+  // eslint-disable-line
   res.status(err.status || 500).json({
     message: err.message,
     stack: err.stack,
